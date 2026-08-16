@@ -10,7 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Docker Hubではなく、GitHub公式レジストリのQMKコンテナを使用（認証不要・最速）
     container: ghcr.io/qmk/qmk_cli:latest
 
     steps:
@@ -19,13 +18,13 @@ jobs:
 
       - name: Build Firmware
         run: |
-          # 1. コンテナ内のQMK環境のキーボードフォルダに、今回のリポジトリ内の cornelius をコピー
-          cp -r keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius /qmk_firmware/keyboards/
+          # $GITHUB_WORKSPACE を明示することで、チェックアウトされたフォルダから確実にコピーします
+          cp -r $GITHUB_WORKSPACE/keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius /qmk_firmware/keyboards/
           
-          # 2. QMKのルートディレクトリに移動
+          # QMKの作業ルートに移動
           cd /qmk_firmware
           
-          # 3. ビルドを実行（コンパイラは最初からコンテナに入っているので即開始されます）
+          # コンパイルを実行
           qmk compile -kb cornelius -km vial
 
       - name: Upload Firmware
