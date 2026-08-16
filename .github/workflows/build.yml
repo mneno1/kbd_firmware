@@ -12,36 +12,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Install QMK CLI
+      - name: Install QMK CLI & Set up Official QMK
         run: |
           python3 -m pip install --upgrade qmk
+          # 公式の正しいQMK環境をデフォルトの位置 (~/qmk_firmware) にクローンしてセットアップ
+          qmk setup -y
 
-      - name: Setup QMK Workspace
+      - name: Copy Cornelius Files to QMK Workspace
         run: |
-          # QMKツールのルールを回避するため、リポジトリ内のファームウェアを
-          # 「qmk_firmware」という名前の別ディレクトリとして配置・命名する
-          mv keyboards/cornelius/vial-kb/vial-qmk /home/runner/qmk_firmware
-          
-          # 正しいフォルダ名になった状態で、QMKのホームディレクトリとして設定
-          qmk setup -y --home /home/runner/qmk_firmware
+          # リポジトリ内にある cornelius のキーボード定義一式を、公式QMKの該当フォルダへ丸ごとコピー
+          cp -r keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius ~/qmk_firmware/keyboards/
 
-      - name: Build Cornelius Firmware
+      - name: Build Firmware
         run: |
-          cd /home/runner/qmk_firmware
-          
-          # コンパイルを実行
+          cd ~/qmk_firmware
+          # コピーしたキーボード名とキーマップを指定してコンパイル
           qmk compile -kb cornelius -km vial
 
       - name: Upload Firmware
         uses: actions/upload-artifact@v4
         with:
           name: cornelius_vial_firmware
-          # ビルドされ出力された成果物を回収
+          # 生成されたファームウェアファイルを回収
           path: |
             /home/runner/qmk_firmware/*.hex
             /home/runner/qmk_firmware/*.bin
