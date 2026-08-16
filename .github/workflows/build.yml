@@ -22,15 +22,26 @@ jobs:
           python3 -m pip install --upgrade qmk
           qmk setup -y
 
-      - name: Build
+      - name: Build Cornelius Firmware
         run: |
+          # 実際のQMKファームウェア本体が格納されているディレクトリに移動
+          cd keyboards/cornelius/vial-kb/vial-qmk
+          
+          # サブモジュールの同期（コンパイルに必要なchibiosやlufa等を取得）
+          make git-submodule
+          
+          # カレントディレクトリ（vial-qmk）をQMKのホーム（作業場所）に設定
+          qmk config user.qmk_home=$(pwd)
+          
+          # コンパイルを実行
           qmk compile -kb cornelius -km vial
 
-      - name: Upload
+      - name: Upload Firmware
         uses: actions/upload-artifact@v4
         with:
-          name: firmware
+          name: cornelius_vial_firmware
+          # vial-qmk ディレクトリ内に生成された各種ファームウェアを回収
           path: |
-            *.hex
-            *.bin
-            *.uf2
+            keyboards/cornelius/vial-kb/vial-qmk/*.hex
+            keyboards/cornelius/vial-kb/vial-qmk/*.bin
+            keyboards/cornelius/vial-kb/vial-qmk/*.uf2
