@@ -23,15 +23,16 @@ jobs:
 
       - name: Setup QMK Workspace
         run: |
-          # 実際のQMKファームウェア（vial-qmk）があるディレクトリに移動
-          cd keyboards/cornelius/vial-kb/vial-qmk
+          # QMKツールのルールを回避するため、リポジトリ内のファームウェアを
+          # 「qmk_firmware」という名前の別ディレクトリとして配置・命名する
+          mv keyboards/cornelius/vial-kb/vial-qmk /home/runner/qmk_firmware
           
-          # QMK CLIに対して、このフォルダをルートとして設定＆必要なサブモジュールを自動取得
-          qmk setup -y -H .
+          # 正しいフォルダ名になった状態で、QMKのホームディレクトリとして設定
+          qmk setup -y --home /home/runner/qmk_firmware
 
       - name: Build Cornelius Firmware
         run: |
-          cd keyboards/cornelius/vial-kb/vial-qmk
+          cd /home/runner/qmk_firmware
           
           # コンパイルを実行
           qmk compile -kb cornelius -km vial
@@ -40,8 +41,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cornelius_vial_firmware
-          # 生成されたファームウェアファイルを回収
+          # ビルドされ出力された成果物を回収
           path: |
-            keyboards/cornelius/vial-kb/vial-qmk/*.hex
-            keyboards/cornelius/vial-kb/vial-qmk/*.bin
-            keyboards/cornelius/vial-kb/vial-qmk/*.uf2
+            /home/runner/qmk_firmware/*.hex
+            /home/runner/qmk_firmware/*.bin
+            /home/runner/qmk_firmware/*.uf2
