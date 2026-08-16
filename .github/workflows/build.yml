@@ -1,0 +1,45 @@
+name: Build Cornelius Vial Firmware
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch: # GitHub上のボタンから手動で実行できるようにする設定
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: qmkfm/qmk_base_container:latest # QMK公式のビルド用コンテナを使用
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive # サブモジュールも含めてチェックアウト
+
+      - name: Install QMK CLI
+        run: |
+          python3 -m pip install --upgrade qmk
+
+      - name: Setup QMK Workspace
+        run: |
+          # リポジトリ内の vial-qmk ディレクトリに移動してサブモジュール群を同期
+          cd keyboards/cornelius/vial-kb/vial-qmk
+          make git-submodule
+
+      - name: Compile Firmware
+        run: |
+          cd keyboards/cornelius/vial-kb/vial-qmk
+          # 対象のキーボード名とキーマップを指定してビルドを実行
+          qmk compile -kb cornelius -km vial
+
+      - name: Upload Firmware Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cornelius_vial_firmware
+          # ビルドされたファームウェア（.hex または .bin / .uf2 など拡張子は自動判定）を保存
+          path: |
+            keyboards/cornelius/vial-kb/vial-qmk/*.hex
+            keyboards/cornelius/vial-kb/vial-qmk/*.bin
+            keyboards/cornelius/vial-kb/vial-qmk/*.uf2
