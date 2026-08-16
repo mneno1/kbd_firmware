@@ -10,34 +10,29 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Docker Hubではなく、GitHub公式レジストリのQMKコンテナを使用（認証不要・最速）
+    container: ghcr.io/qmk/qmk_cli:latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install QMK CLI & Set up Official QMK
-        run: |
-          python3 -m pip install --upgrade qmk
-          # 公式の正しいQMK環境をデフォルトの位置 (~/qmk_firmware) にクローンしてセットアップ
-          qmk setup -y
-
-      - name: Copy Cornelius Files to QMK Workspace
-        run: |
-          # リポジトリ内にある cornelius のキーボード定義一式を、公式QMKの該当フォルダへ丸ごとコピー
-          cp -r keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius ~/qmk_firmware/keyboards/
-
       - name: Build Firmware
         run: |
-          cd ~/qmk_firmware
-          # コピーしたキーボード名とキーマップを指定してコンパイル
+          # 1. コンテナ内のQMK環境のキーボードフォルダに、今回のリポジトリ内の cornelius をコピー
+          cp -r keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius /qmk_firmware/keyboards/
+          
+          # 2. QMKのルートディレクトリに移動
+          cd /qmk_firmware
+          
+          # 3. ビルドを実行（コンパイラは最初からコンテナに入っているので即開始されます）
           qmk compile -kb cornelius -km vial
 
       - name: Upload Firmware
         uses: actions/upload-artifact@v4
         with:
           name: cornelius_vial_firmware
-          # 生成されたファームウェアファイルを回収
           path: |
-            /home/runner/qmk_firmware/*.hex
-            /home/runner/qmk_firmware/*.bin
-            /home/runner/qmk_firmware/*.uf2
+            /qmk_firmware/*.hex
+            /qmk_firmware/*.bin
+            /qmk_firmware/*.uf2
