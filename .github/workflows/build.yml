@@ -1,36 +1,49 @@
-name: Build Cornelius Vial Firmware
+name: Build Cornelius Vial Firmware (Plan B - Turbo)
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
     branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Vial公式が提供している、コンパイラ全部入りの正しいコンテナイメージを指定
+    container: ghcr.io/vial-kb/vial-qmk-build-box:amd64
 
     steps:
-      - name: Checkout Repository
+      # 1. あなたのリポジトリにあるキーマップを取り出す
+      - name: Checkout Your Repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive # サブモジュールも確実に取得
 
-      - name: Run QMK Compilation Action
-        uses: qmk/qmk-firmware-buildaction@v4
-        with:
-          # あなたのリポジトリ内にある「vial-qmk」のフォルダパスを直接指定
-          qmk_home: keyboards/cornelius/vial-kb/vial-qmk
-          keyboard: cornelius
-          keymap: vial
+      # 2. コンテナ内に最初から入っているVial環境に、あなたのキーマップを流し込む
+      - name: Inject Cornelius Files
+        run: |
+          # コンテナ内のキーボードフォルダにCornelius用のディレクトリを作成
+          mkdir -p /qmk_firmware/keyboards/cornelius/keymaps/vial
+          
+          # あなたのリポジトリのファイルをコンテナ内へコピー
+          cp -r keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/keymaps/vial/* /qmk_firmware/keyboards/cornelius/keymaps/vial/
+          
+          if [ -f keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/rules.mk ]; then
+            cp keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/rules.mk /qmk_firmware/keyboards/cornelius/
+          fi
+          if [ -f keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/config.h ]; then
+            cp keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/config.h /qmk_firmware/keyboards/cornelius/
+          fi
 
-      - name: Upload Firmware
+      # 3. ビルドを実行（環境は揃っているので即座に開始されます）
+      - name: Build Firmware
+        run: |
+          cd /qmk_firmware
+          qmk compile -kb cornelius -km vial
+
+      # 4. 成果物を回収
+      - name: Upload Finished Firmware
         uses: actions/upload-artifact@v4
         with:
           name: cornelius_vial_firmware
-          # アクションによってビルドされたファームウェアファイルを自動回収
           path: |
-            keyboards/cornelius/vial-kb/vial-qmk/*.hex
-            keyboards/cornelius/vial-kb/vial-qmk/*.bin
-            keyboards/cornelius/vial-kb/vial-qmk/*.uf2
+            /qmk_firmware/*.hex
+            /qmk_firmware/*.bin
+            /qmk_firmware/*.uf2
