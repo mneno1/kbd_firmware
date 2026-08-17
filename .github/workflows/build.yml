@@ -16,25 +16,35 @@ jobs:
         with:
           submodules: recursive
 
-      # 2. リポジトリの Makefile 用に最小限のツールを導入
+      # 2. リポジトリのビルドに必要なARMコンパイラツールを導入
       - name: Install Build Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi git python3-pip
           python3 -m pip install --upgrade qmk
 
-      # 3. readme.md の手順通りにビルドを実行
+      # 3. 引数を完全に指定して初期化とコンパイルを実行
       - name: Initialize and Compile via Makefile
         run: |
-          make vial-qmk-init kb=cornelius
-          make vial-qmk-compile kb=cornelius
+          # 依存関係を初期化
+          make git-submodule
+          
+          # キーボード名(kb)とキーマップ名(km)を「両方」渡して初期化（これでエラーを回避します）
+          make vial-qmk-init kb=cornelius km=vial
+          
+          # 実際のコンパイル処理を実行
+          make vial-qmk-compile kb=cornelius km=vial
 
-      # 4. readme.md 記載の出力先から成果物を回収
+      # 4. ビルド成果物の回収
       - name: Upload Finished Firmware
         uses: actions/upload-artifact@v4
         with:
           name: cornelius_vial_firmware
+          # ログを元に、src/ 以下のビルド出力先、およびルートの出力を広くカバー
           path: |
             keyboards/cornelius/vial-kb/vial-qmk/.build/*.hex
             keyboards/cornelius/vial-kb/vial-qmk/.build/*.bin
             keyboards/cornelius/vial-kb/vial-qmk/.build/*.uf2
+            src/vial-kb/vial-qmk/.build/*.hex
+            src/vial-kb/vial-qmk/.build/*.bin
+            src/vial-kb/vial-qmk/.build/*.uf2
