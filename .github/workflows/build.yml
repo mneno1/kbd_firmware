@@ -10,15 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. あなたのリポジトリを取得（※古い壊れたサブモジュールは無視してクローンします）
+      # 1. あなたのリポジトリを取得（古い壊れたサブモジュールは無視）
       - name: Checkout Your Repository
         uses: actions/checkout@v4
         with:
-          submodules: 'false' # ← これにより、古いvial-qmkエラーを完全に回避します
+          submodules: 'false'
 
-      # 2. 本家Vial公式の最新システムをクリーンにダウンロード
+      # 2. 本家Vial公式の最新システムをクローン（URLをダブルクォーテーションで確実に保護）
       - name: Clone Clean Official Vial-QMK
-        run: git clone --depth=1 https://github.com /home/runner/vial-qmk
+        run: git clone --depth=1 "https://github.com" /home/runner/vial-qmk
 
       # 3. 新しく作った cornelius_vial フォルダのファイルだけを公式システムへ移植
       - name: Inject Custom Keymap Files
@@ -40,7 +40,7 @@ jobs:
           qmk config user.qmk_home=$(pwd)
           qmk compile -kb foostan/cornelius -km vial -e ALLOW_WARNINGS=yes
 
-      # 6. 生成されたファームウェア（.bin または .uf2 などのファイル）を回収
+      # 6. 生成されたファームウェアファイルを回収
       - name: Upload Finished Firmware
         uses: actions/upload-artifact@v4
         with:
