@@ -10,32 +10,32 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # QMK公式コンテナを使用（ビルド環境構築済み）
-    container: ghcr.io/qmk/qmk_cli:latest
+    # 全コンパイラとcompileコマンドが最初から入っている完全版コンテナを使用
+    container: ghcr.io/qmk/qmk_firmware:latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          # リポジトリ内の子ファームウェア（vial-qmk）を正しくロードするため必須
+          # vial-qmkのリポジトリを丸ごとロードするために必須
           submodules: recursive
 
       - name: Build Firmware
         run: |
-          # 1. あなたのリポジトリにある、vial-qmk のフォルダまで移動します
+          # 1. あなたのリポジトリにある、vial-qmk のフォルダに移動
           cd keyboards/cornelius/vial-kb/vial-qmk
           
-          # 2. 移動したこのフォルダ自体を、QMKの作業ホームとして強制認識させます
+          # 2. 移動したこのフォルダを、QMKの作業ホームとして強制的に設定
           qmk config user.qmk_home=$(pwd)
           
-          # 3. コンパイルを実行（余計なインストール作業がないため一瞬で終わります）
+          # 3. コンパイルを実行（完全版コンテナなので即ビルドが走ります）
           qmk compile -kb cornelius -km vial
 
       - name: Upload Firmware
         uses: actions/upload-artifact@v4
         with:
           name: cornelius_vial_firmware
-          # vial-qmk フォルダ内に生成された拡張子（.hex, .bin, .uf2 等）を自動回収
+          # 生成されたファームウェアファイルを回収
           path: |
             keyboards/cornelius/vial-kb/vial-qmk/*.hex
             keyboards/cornelius/vial-kb/vial-qmk/*.bin
