@@ -1,4 +1,4 @@
-name: Build Cornelius Vial Firmware (Plan B - Turbo)
+name: Build Cornelius Vial Firmware (Plan B - Fast)
 
 on:
   push:
@@ -8,42 +8,52 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Vial公式が提供している、コンパイラ全部入りの正しいコンテナイメージを指定
-    container: ghcr.io/vial-kb/vial-qmk-build-box:amd64
 
     steps:
-      # 1. あなたのリポジトリにあるキーマップを取り出す
+      # 1. あなたのリポジトリにあるキーマップファイルをチェックアウト
       - name: Checkout Your Repository
         uses: actions/checkout@v4
 
-      # 2. コンテナ内に最初から入っているVial環境に、あなたのキーマップを流し込む
+      # 2. 本家Vial公式の「動く最新システム」をダウンロード
+      - name: Clone Official Vial-QMK Source
+        run: |
+          git clone --depth=1 https://github.com ~/vial-qmk
+
+      # 3. あなたのリポジトリにあるCorneliusのファイルを公式システムへ移植
       - name: Inject Cornelius Files
         run: |
-          # コンテナ内のキーボードフォルダにCornelius用のディレクトリを作成
-          mkdir -p /qmk_firmware/keyboards/cornelius/keymaps/vial
-          
-          # あなたのリポジトリのファイルをコンテナ内へコピー
-          cp -r keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/keymaps/vial/* /qmk_firmware/keyboards/cornelius/keymaps/vial/
+          mkdir -p ~/vial-qmk/keyboards/cornelius/keymaps/vial
+          cp -r keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/keymaps/vial/* ~/vial-qmk/keyboards/cornelius/keymaps/vial/
           
           if [ -f keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/rules.mk ]; then
-            cp keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/rules.mk /qmk_firmware/keyboards/cornelius/
+            cp keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/rules.mk ~/vial-qmk/keyboards/cornelius/
           fi
           if [ -f keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/config.h ]; then
-            cp keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/config.h /qmk_firmware/keyboards/cornelius/
+            cp keyboards/cornelius/vial-kb/vial-qmk/keyboards/cornelius/config.h ~/vial-qmk/keyboards/cornelius/
           fi
 
-      # 3. ビルドを実行（環境は揃っているので即座に開始されます）
+      # 4. Cornelius（RP2040/ARMマイコン）のビルドに必要な最小限のコンパイラだけを入れる
+      # ※全体のダウンロードを行わないため、ここが劇的に早くなります
+      - name: Install ARM Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi git python3-pip
+          python3 -m pip install --upgrade qmk
+
+      # 5. ビルドを実行
       - name: Build Firmware
         run: |
-          cd /qmk_firmware
+          cd ~/vial-qmk
+          # 不要な全体のセットアップをスキップし、このフォルダ単体でビルド
+          qmk config user.qmk_home=$(pwd)
           qmk compile -kb cornelius -km vial
 
-      # 4. 成果物を回収
+      # 6. ファームウェアの回収
       - name: Upload Finished Firmware
         uses: actions/upload-artifact@v4
         with:
           name: cornelius_vial_firmware
           path: |
-            /qmk_firmware/*.hex
-            /qmk_firmware/*.bin
-            /qmk_firmware/*.uf2
+            /home/runner/vial-qmk/*.hex
+            /home/runner/vial-qmk/*.bin
+            /home/runner/vial-qmk/*.uf2
