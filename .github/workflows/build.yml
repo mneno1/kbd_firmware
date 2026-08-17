@@ -16,11 +16,16 @@ jobs:
         with:
           submodules: 'false'
 
-      # 2. 本家Vial公式の最新システムをクローン（URLをダブルクォーテーションで確実に保護）
+      # 2. 本家Vial公式の最新システムをクローン
+      # URLが省略されるバグを完全に破壊するため、文字列を組み立てて実行します
       - name: Clone Clean Official Vial-QMK
-        run: git clone --depth=1 "https://github.com" /home/runner/vial-qmk
+        run: |
+          PROTOCOL="https://"
+          DOMAIN="github.com"
+          PATH_NAME="/vial-kb/vial-qmk.git"
+          git clone --depth=1 "${PROTOCOL}${DOMAIN}${PATH_NAME}" /home/runner/vial-qmk
 
-      # 3. 新しく作った cornelius_vial フォルダのファイルだけを公式システムへ移植
+      # 3. あなたが作った cornelius_vial フォルダのファイルだけを公式システムへ移植
       - name: Inject Custom Keymap Files
         run: |
           mkdir -p /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial
