@@ -1,4 +1,4 @@
-name: Build Cornelius Vial Firmware (Using Repo Makefile)
+name: Build Cornelius Vial Firmware (Safe Plan)
 
 on:
   push:
@@ -10,41 +10,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. リポジトリとサブモジュールを確実に取得
-      - name: Checkout Repository
+      # 1. あなたのリポジトリを取得（※古い壊れたサブモジュールは無視してクローンします）
+      - name: Checkout Your Repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: 'false' # ← これにより、古いvial-qmkエラーを完全に回避します
 
-      # 2. リポジトリのビルドに必要なARMコンパイラツールを導入
-      - name: Install Build Tools
+      # 2. 本家Vial公式の最新システムをクリーンにダウンロード
+      - name: Clone Clean Official Vial-QMK
+        run: git clone --depth=1 https://github.com /home/runner/vial-qmk
+
+      # 3. 新しく作った cornelius_vial フォルダのファイルだけを公式システムへ移植
+      - name: Inject Custom Keymap Files
+        run: |
+          mkdir -p /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial
+          cp -r cornelius_vial/* /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial/
+
+      # 4. ビルドに必要な最小限のコンパイラをインストール
+      - name: Install ARM Compiler Toolchain
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi git python3-pip
           python3 -m pip install --upgrade qmk
 
-      # 3. 引数を完全に指定して初期化とコンパイルを実行
-      - name: Initialize and Compile via Makefile
+      # 5. コンパイルを実行
+      - name: Build Custom Firmware
         run: |
-          # 依存関係を初期化
-          make git-submodule
-          
-          # キーボード名(kb)とキーマップ名(km)を「両方」渡して初期化（これでエラーを回避します）
-          make vial-qmk-init kb=cornelius km=vial
-          
-          # 実際のコンパイル処理を実行
-          make vial-qmk-compile kb=cornelius km=vial
+          cd /home/runner/vial-qmk
+          qmk config user.qmk_home=$(pwd)
+          qmk compile -kb foostan/cornelius -km vial -e ALLOW_WARNINGS=yes
 
-      # 4. ビルド成果物の回収
+      # 6. 生成されたファームウェア（.bin または .uf2 などのファイル）を回収
       - name: Upload Finished Firmware
         uses: actions/upload-artifact@v4
         with:
           name: cornelius_vial_firmware
-          # ログを元に、src/ 以下のビルド出力先、およびルートの出力を広くカバー
           path: |
-            keyboards/cornelius/vial-kb/vial-qmk/.build/*.hex
-            keyboards/cornelius/vial-kb/vial-qmk/.build/*.bin
-            keyboards/cornelius/vial-kb/vial-qmk/.build/*.uf2
-            src/vial-kb/vial-qmk/.build/*.hex
-            src/vial-kb/vial-qmk/.build/*.bin
-            src/vial-kb/vial-qmk/.build/*.uf2
+            /home/runner/vial-qmk/*.hex
+            /home/runner/vial-qmk/*.bin
+            /home/runner/vial-qmk/*.uf2
