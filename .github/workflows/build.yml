@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04  # 古い安定したGCCを動かすため、OSのバージョンを明示的に固定します
 
     steps:
       # 1. あなたのリポジトリを取得（古い壊れたサブモジュールは無視）
@@ -16,8 +16,7 @@ jobs:
         with:
           submodules: 'false'
 
-      # 2. 変数を使用してURLを安全に組み立ててクローン（引数の位置も完全固定）
-      # ここではVial公式ではなく、あなたのリポジトリのベースである「foostan氏のQMK環境」をベースとして取得します
+      # 2. 変数を使用してURLを安全に組み立ててクローン
       - name: Clone Base QMK Source
         run: |
           PROTOCOL="https://"
@@ -26,17 +25,14 @@ jobs:
           FULL_URL="${PROTOCOL}${DOMAIN}${PATH_NAME}"
           git clone --depth=1 "${FULL_URL}" /home/runner/vial-qmk
 
-      # 3. あなたのリポジトリ内にある「cornelius」のキーボード定義（rules.mk等すべて含む）を丸ごと上書き移植
+      # 3. あなたのリポジトリ内の「cornelius」の定義ファイルを一括移植
       - name: Inject Cornelius Original Files
         run: |
-          # 既存のキーボードフォルダを一度きれいに削除
           rm -rf /home/runner/vial-qmk/keyboards/foostan/cornelius
           mkdir -p /home/runner/vial-qmk/keyboards/foostan/cornelius
-          
-          # あなたのリポジトリの「keyboards/cornelius/qmk/qmk_firmware/*」にある、当時の正しい定義ファイルを一括移植
           cp -r keyboards/cornelius/qmk/qmk_firmware/* /home/runner/vial-qmk/keyboards/foostan/cornelius/
           
-          # 続いて、あなたが用意した「cornelius_vial」フォルダ内の最新キーマップを流し込む
+          # あなたが用意した「cornelius_vial」フォルダ内の最新キーマップを流し込む
           mkdir -p /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial
           cp -r cornelius_vial/* /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial/
 
@@ -46,11 +42,13 @@ jobs:
           cd /home/runner/vial-qmk
           git submodule update --init --recursive
 
-      # 5. コンパイラ群を一括インストール
-      - name: Install Compiler Toolchain
+      # 5. 【重要】容量が溢れない、当時と同じ古いGCC 8コンパイラを正しくインストール
+      - name: Install Correct Compiler Toolchain (GCC 8)
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi gcc-avr avr-libc git python3-pip
+          # 古いOSのリポジトリから、容量が最も小さくなるgcc-avr (バージョン8) を指定して入れます
+          sudo apt-get install -y gcc-avr=1:8.3.0+Atmel3.6.2-11 binutils-avr avr-libc git python3-pip
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
           python3 -m pip install --upgrade qmk
 
       # 6. コンパイルを実行
