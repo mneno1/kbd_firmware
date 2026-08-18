@@ -1,4 +1,4 @@
-name: Build Cornelius Vial Firmware (Safe Plan)
+name: Build Cornelius Vial Firmware (Perfect Match)
 
 on:
   push:
@@ -16,8 +16,9 @@ jobs:
         with:
           submodules: 'false'
 
-      # 2. 変数を使用してURLを安全に組み立ててクローン（引数の位置を完全に修正）
-      - name: Clone Clean Official Vial-QMK
+      # 2. 変数を使用してURLを安全に組み立ててクローン（引数の位置も完全固定）
+      # ここではVial公式ではなく、あなたのリポジトリのベースである「foostan氏のQMK環境」をベースとして取得します
+      - name: Clone Base QMK Source
         run: |
           PROTOCOL="https://"
           DOMAIN="github.com"
@@ -25,17 +26,25 @@ jobs:
           FULL_URL="${PROTOCOL}${DOMAIN}${PATH_NAME}"
           git clone --depth=1 "${FULL_URL}" /home/runner/vial-qmk
 
-      # 3. 公式システムに必要な共通ライブラリをすべて同期
+      # 3. あなたのリポジトリ内にある「cornelius」のキーボード定義（rules.mk等すべて含む）を丸ごと上書き移植
+      - name: Inject Cornelius Original Files
+        run: |
+          # 既存のキーボードフォルダを一度きれいに削除
+          rm -rf /home/runner/vial-qmk/keyboards/foostan/cornelius
+          mkdir -p /home/runner/vial-qmk/keyboards/foostan/cornelius
+          
+          # あなたのリポジトリの「keyboards/cornelius/qmk/qmk_firmware/*」にある、当時の正しい定義ファイルを一括移植
+          cp -r keyboards/cornelius/qmk/qmk_firmware/* /home/runner/vial-qmk/keyboards/foostan/cornelius/
+          
+          # 続いて、あなたが用意した「cornelius_vial」フォルダ内の最新キーマップを流し込む
+          mkdir -p /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial
+          cp -r cornelius_vial/* /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial/
+
+      # 4. 依存ライブラリの同期
       - name: Fetch Official Submodules
         run: |
           cd /home/runner/vial-qmk
           git submodule update --init --recursive
-
-      # 4. あなたが作った cornelius_vial フォルダのファイルだけを公式システムへ移植
-      - name: Inject Custom Keymap Files
-        run: |
-          mkdir -p /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial
-          cp -r cornelius_vial/* /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial/
 
       # 5. コンパイラ群を一括インストール
       - name: Install Compiler Toolchain
