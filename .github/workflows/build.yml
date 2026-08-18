@@ -49,20 +49,9 @@ jobs:
         run: |
           kb=cornelius kr=rev2 km=vial make vial-qmk-compile
 
-      - name: Find build output
-        if: always()
-        run: |
-          echo "=== Repository root ==="
-          pwd
-      
-          echo
-          echo "=== .build directories ==="
-          find . -type d -name ".build" -print
-      
-          echo
-          echo "=== Firmware files ==="
-          find . -type f \( \
-            -name "*.hex" -o \
-            -name "*.uf2" -o \
-            -name "*.bin" \
-          \) -print
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: cornelius-rev2-vial-firmware
+          path: keyboards/cornelius/vial-kb/vial-qmk/.build/cornelius_rev2_vial.uf2
+          if-no-files-found: error
