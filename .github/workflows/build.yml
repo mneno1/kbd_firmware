@@ -1,69 +1,68 @@
-name: Build Cornelius Vial Firmware (Perfect Match)
+name: Build Cornelius Vial Firmware
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+    paths:
+      - "keyboards/cornelius/**"
+      - ".github/workflows/build.yml"
+      - "Makefile"
+      - ".gitmodules"
+
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04  # 古い安定したGCCを動かすため、OSのバージョンを明示的に固定します
+    runs-on: ubuntu-latest
 
     steps:
-      # 1. あなたのリポジトリを取得（古い壊れたサブモジュールは無視）
-      - name: Checkout Your Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: 'false'
+          submodules: recursive
 
-      # 2. 変数を使用してURLを安全に組み立ててクローン
-      - name: Clone Base QMK Source
-        run: |
-          PROTOCOL="https://"
-          DOMAIN="github.com"
-          PATH_NAME="/vial-kb/vial-qmk.git"
-          FULL_URL="${PROTOCOL}${DOMAIN}${PATH_NAME}"
-          git clone --depth=1 "${FULL_URL}" /home/runner/vial-qmk
-
-      # 3. あなたのリポジトリ内の「cornelius」の定義ファイルを一括移植
-      - name: Inject Cornelius Original Files
-        run: |
-          rm -rf /home/runner/vial-qmk/keyboards/foostan/cornelius
-          mkdir -p /home/runner/vial-qmk/keyboards/foostan/cornelius
-          cp -r keyboards/cornelius/qmk/qmk_firmware/* /home/runner/vial-qmk/keyboards/foostan/cornelius/
-          
-          # あなたが用意した「cornelius_vial」フォルダ内の最新キーマップを流し込む
-          mkdir -p /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial
-          cp -r cornelius_vial/* /home/runner/vial-qmk/keyboards/foostan/cornelius/keymaps/vial/
-
-      # 4. 依存ライブラリの同期
-      - name: Fetch Official Submodules
-        run: |
-          cd /home/runner/vial-qmk
-          git submodule update --init --recursive
-
-      # 5. 【重要】容量が溢れない、当時と同じ古いGCC 8コンパイラを正しくインストール
-      - name: Install Correct Compiler Toolchain (GCC 8)
+      - name: Install QMK dependencies
+        working-directory: src/vial-kb/vial-qmk
         run: |
           sudo apt-get update
-          # 古いOSのリポジトリから、容量が最も小さくなるgcc-avr (バージョン8) を指定して入れます
-          sudo apt-get install -y gcc-avr=1:8.3.0+Atmel3.6.2-11 binutils-avr avr-libc git python3-pip
-          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
-          python3 -m pip install --upgrade qmk
+          sudo apt-get install -y \
+            git \
+            python3-pip \
+            gcc-arm-none-eabi \
+            binutils-arm-none-eabi \
+            libnewlib-arm-none-eabi
 
-      # 6. コンパイルを実行
-      - name: Build Custom Firmware
+          python3 -m pip install --user qmk
+
+      - name: Setup QMK
+        working-directory: src/vial-kb/vial-qmk
         run: |
-          cd /home/runner/vial-qmk
-          qmk config user.qmk_home=$(pwd)
-          qmk compile -kb foostan/cornelius -km vial -e ALLOW_WARNINGS=yes
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          qmk setup -H "$(pwd)" -y
 
-      # 7. 生成されたファームウェアファイルを回収
-      - name: Upload Finished Firmware
+      - name: Initialize Cornelius Vial build
+        run: |
+          kb=cornelius make vial-qmk-init
+
+      - name: Build Cornelius Vial firmware
+        run: |
+          kb=cornelius kr=rev2 km=vial make vial-qmk-compile
+
+      - name: Show build output
+        run: |
+          echo "=== Vial firmware ==="
+          find keyboards/cornelius/vial-kb/vial-qmk/.build \
+            -maxdepth 1 \
+            -type f \
+            -print
+
+      - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: cornelius_vial_firmware
+          name: cornelius-vial-firmware
           path: |
-            /home/runner/vial-qmk/*.hex
-            /home/runner/vial-qmk/*.bin
-            /home/runner/vial-qmk/*.uf2
+            keyboards/cornelius/vial-kb/vial-qmk/.build/*.hex
+            keyboards/cornelius/vial-kb/vial-qmk/.build/*.uf2
+            keyboards/cornelius/vial-kb/vial-qmk/.build/*.bin
+          if-no-files-found: error
